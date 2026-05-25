@@ -1,47 +1,35 @@
 // api/voice.js — Vercel serverless function
-// Fully self-contained to process Siri Shortcuts and Web Requests in a single hop.
-
 export default async function handler(req, res) {
-  // 1. Configure CORS policies
-  res.setHeader("Access-Control-Allow-Origin", process.env.ALLOWED_ORIGIN || "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  // 1. Handle Security & CORS
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") return res.status(200).end();
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { text, session_id } = req.body;
-  if (!text) return res.status(400).json({ error: "Missing 'text' field in request body." });
+  // 2. Read input from either a POST body OR a simple GET web link parameter
+  const text = req.body?.text || req.query?.text;
+  const session_id = req.body?.session_id || req.query?.session_id || "siri_session";
+
+  if (!text) return res.status(400).json({ error: "Missing text parameter." });
 
   const cleanInput = text.toLowerCase().trim();
+  let replyText = "";
 
-  // 2. Run your local structural hardcoded matchers
-  let replyText = null;
-  let intentName = "unknown";
-
-  if (includes(cleanInput, ["hello", "hi", "hey", "good morning", "howdy"])) {
-    intentName = "greeting";
-    replyText = "Hello! Welcome to Nanobooker. I can help you book a table, check availability, or manage your reservations. What would you like to do?";
-  } else if (includes(cleanInput, ["thank", "thanks", "cheers", "awesome"])) {
-    intentName = "thanks";
-    replyText = "You are very welcome! Let me know if you need anything else.";
-  } else if (includes(cleanInput, ["forget", "reset", "clear", "start over"])) {
-    intentName = "reset";
-    replyText = "Done. I have cleared our conversation context. How can I help you today?";
-  }
-
-  // 3. Fallback to Gemini Server-Side if no manual intent matches
-  if (!replyText) {
-    if (!process.env.GEMINI_API_KEY) {
-      intentName = "error_fallback";
-      replyText = "I encountered a configuration issue. The developer has not added the Gemini API Key yet.";
-    } else {
-      intentName = "gemini_ai_reply";
+  // 3. Simple Keyword Matcher Rules
+  if (cleanInput.includes("hours") || cleanInput.includes("open")) {
+    replyText = "We are open Tuesday to Sunday from 12pm to 10pm.";
+  } else if (cleanInput.includes("book") || cleanInput.includes("reserve")) {
+    replyText = "I can absolutely help you book a table. What date and time were you thinking?";
+  } else if (cleanInput.includes("hello") || cleanInput.includes("hi")) {
+    replyText = "Hello! Welcome to Nanobooker. How can I help you today?";
+  } else {
+    // 4. Fallback to Gemini if no keywords match
+    if (process.env.GEMINI_API_KEY) {
       try {
-        const systemPrompt = process.env.SYSTEM_PROMPT || "You are Nova, a friendly voice booking assistant for Nanobooker. Keep responses under two sentences and clean of markdown.";
-        
-        // Execute direct REST request to Gemini Flash
+        const systemPrompt = "You are Nova, a concise booking assistant. Respond in under two sentences. No markdown formatting symbols.";
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+        
         const response = await fetch(geminiUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -52,32 +40,21 @@ export default async function handler(req, res) {
           })
         });
 
-        if (!response.ok) throw new Error("Gemini API connection error");
-        
-        const data = await response.json();
-        let rawAiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a response.";
-        
-        // Siri Voice Optimization: Strip out markdown symbols (*, #, _, `) so Siri doesn't literally pronounce them.
-        replyText = rawAiText.replace(/[\*#_`]/g, "").trim();
-
+        if (response.ok) {
+          const data = await response.json();
+          const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          replyText = rawText.replace(/[\*#_`]/g, "").trim();
+        } else {
+          replyText = "I am having trouble reaching the AI network.";
+        }
       } catch (err) {
-        console.error("[Gemini Fallback Error]:", err);
-        replyText = "I'm having trouble reaching my database right now. Please try again shortly.";
+        replyText = "An error occurred while communicating with the server.";
       }
+    } else {
+      replyText = "I heard you, but the Gemini API Key is missing from the server environment.";
     }
   }
 
-  console.log(`[Voice Pipeline] Input: "${text}" | Intent: ${intentName}`);
-  
-  // 4. Return structural payload matching Siri's dictionary parsing layout
-  return res.status(200).json({
-    reply: replyText,
-    intent: intentName,
-    session_id: session_id || "siri_mobile_session"
-  });
-}
-
-// Micro-helper function for text keyword scanning
-function includes(target, phrases) {
-  return phrases.some(phrase => target.includes(phrase));
+  // 5. Send clean JSON response back to Siri
+  return res.status(200).json({ reply: replyText });
 }
