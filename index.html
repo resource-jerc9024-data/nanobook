@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Nanobooker Siri Integration Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080b0f;
+    --surface: #0f1419;
+    --border: #1e2730;
+    --accent: #00e5a0;
+    --accent2: #0066ff;
+    --text: #e8edf2;
+    --muted: #4a5568;
+    --warning: #ffaa00;
+    --danger: #ff4466;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background-image: 
+      linear-gradient(to right, rgba(30,39,48,0.2) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(30,39,48,0.2) 1px, transparent 1px);
+    background-size: 40px 40px;
+    z-index: -1;
+  }
+
+  header {
+    width: 100%;
+    max-width: 650px;
+    padding: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    font-weight: 700;
+    font-size: 1.2rem;
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--accent); }
+
+  .compatibility-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    padding: 6px 12px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .status-compatible { background: rgba(0, 229, 160, 0.15); color: var(--accent); border: 1px solid var(--accent); }
+  .status-incompatible { background: rgba(255, 68, 102, 0.15); color: var(--danger); border: 1px solid var(--danger); }
+
+  main {
+    flex: 1;
+    width: 100%;
+    max-width: 650px;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    gap: 24px;
+  }
+
+  .hero-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    text-align: center;
+  }
+  .hero-card h1 { font-size: 1.75rem; margin-bottom: 8px; font-weight: 700; }
+  .hero-card p { color: #a0aec0; font-size: 0.95rem; line-height: 1.5; }
+
+  .setup-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .step-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .step-number {
+    background: var(--accent2);
+    color: white;
+    font-family: 'DM Mono', monospace;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  .step-content { flex: 1; }
+  .step-content h3 { font-size: 1.05rem; margin-bottom: 6px; font-weight: 600; }
+  .step-content p { color: #a0aec0; font-size: 0.9rem; line-height: 1.4; margin-bottom: 12px; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    color: #000000;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn:hover { background: #e2e8f0; }
+  
+  .btn-secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    padding: 8px 16px;
+    border-radius: 6px;
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.05); border-color: var(--muted); }
+
+  .endpoint-badge {
+    background: #05070a;
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--accent);
+    word-break: break-all;
+    display: block;
+    margin-top: 8px;
+  }
+
+  /* Blueprint Modal Styles */
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(4, 6, 9, 0.9);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+  .modal-content {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    max-width: 500px;
+    width: 100%;
+    border-radius: 16px;
+    padding: 24px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+  }
+  .close-modal {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 1.5rem;
+    cursor: pointer;
+  }
+  .blueprint-list {
+    margin-top: 16px;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    font-size: 0.9rem;
+    color: #a0aec0;
+  }
+  .blueprint-list li {
+    background: rgba(255,255,255,0.02);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(232,237,242,0.05);
+  }
+  .blueprint-list strong { color: #fff; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">nano<span>booker</span>.hub</div>
+  <div id="compat-badge" class="compatibility-tag status-compatible">Checking Device...</div>
+</header>
+
+<main>
+  <div class="hero-card">
+    <h1>Siri Voice Orchestration</h1>
+    <p>Link your physical iPhone directly to your custom Gemini-powered serverless engine using native iOS system shortcuts.</p>
+  </div>
+
+  <div class="setup-section">
+    <h2>Integration Steps</h2>
+
+    <div class="step-card">
+      <div class="step-number">1</div>
+      <div class="step-content">
+        <h3>View Siri Shortcut Blueprint</h3>
+        <p>Because Apple blocks third-party shortcut downloads via web sandbox rules, open our visual blueprint to mirror the 45-second configuration tracking layout.</p>
+        <button class="btn" onclick="openModal()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          Open Shortcut Blueprint
+        </button>
+      </div>
+    </div>
+
+    <div class="step-card">
+      <div class="step-number">2</div>
+      <div class="step-content">
+        <h3>Target Webhook Connection</h3>
+        <p>This is the unique execution gateway path computed dynamically for your system project handler:</p>
+        <code id="api-url-display" class="endpoint-badge">https://your-vercel-domain-here.vercel.app/api/voice</code>
+        <button style="margin-top: 12px;" class="btn btn-secondary" onclick="copyEndpoint()">Copy Webhook URL</button>
+      </div>
+    </div>
+
+    <div class="step-card">
+      <div class="step-number">3</div>
+      <div class="step-content">
+        <h3>Trigger Voice Automation</h3>
+        <p>Hold your power button or wake your iPhone's default assistant engine and say:</p>
+        <p style="font-family: 'DM Mono', monospace; color: #fff; font-weight: 500; font-size: 1.1rem; background: rgba(0,102,255,0.1); padding: 10px; border-radius: 6px; border-left: 4px solid var(--accent2); margin-top: 8px;">
+          "Hey Siri, Talk to Nova"
+        </p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div id="blueprint-modal" class="modal">
+  <div class="modal-content">
+    <button class="close-modal" onclick="closeModal()">&times;</button>
+    <h2 style="font-size: 1.3rem; margin-bottom: 6px;">iPhone Shortcut Blueprint</h2>
+    <p style="color: #a0aec0; font-size: 0.85rem; line-height: 1.4;">Open the native <strong>Shortcuts</strong> app on your iPhone, click the <strong>+</strong> icon in the top right corner, name it exactly <strong>"Talk to Nova"</strong>, then stack these 4 actions:</p>
+    
+    <ul class="blueprint-list">
+      <li>
+        <strong>Action 1: Dictate Text</strong>
+        <div style="font-size: 0.8rem; margin-top: 4px; color: var(--accent2);">↳ Captures your physical speech into a variable text string.</div>
+      </li>
+      <li>
+        <strong>Action 2: Get Contents of URL</strong>
+        <div style="font-size: 0.8rem; margin-top: 4px; color: #fff;">
+          • Paste the copied <strong>Webhook URL</strong> into this field.<br>
+          • Expand properties: Change method to <strong>POST</strong>.<br>
+          • Add Header: Key: <code>Content-Type</code>, Value: <code>application/json</code>.<br>
+          • Request Body: Choose <strong>JSON</strong> → Add new text field with Key: <code>text</code> and Value: select the <strong>Dictated Text</strong> variable.
+        </div>
+      </li>
+      <li>
+        <strong>Action 3: Get Dictionary Value</strong>
+        <div style="font-size: 0.8rem; margin-top: 4px; color: var(--accent);">↳ Set Key to <code>reply</code>. Set Target to <code>Contents of URL</code> response payload.</div>
+      </li>
+      <li>
+        <strong>Action 4: Speak Text</strong>
+        <div style="font-size: 0.8rem; margin-top: 4px; color: var(--warning);">↳ Feeds the isolated dictionary response directly back out your device's speakers.</div>
+      </li>
+    </ul>
+    
+    <button style="margin-top: 20px; width: 100%; justify-content: center;" class="btn" onclick="closeModal()">Got it, let's link it</button>
+  </div>
+</div>
+
+<script>
+  // ─── DOM INFERENCE AND DIAGNOSTICS ──────────────────────────────────────────
+  document.addEventListener("DOMContentLoaded", () => {
+    const badge = document.getElementById("compat-badge");
+    const displayLink = document.getElementById("api-url-display");
+
+    // Map your active URL target string automatically
+    displayLink.textContent = `${window.location.origin}/api/voice`;
+
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isIOS) {
+      badge.textContent = "iOS Connected — Ready";
+      badge.className = "compatibility-tag status-compatible";
+    } else {
+      badge.textContent = "Desktop/Android — Read Only Mode";
+      badge.className = "compatibility-tag status-incompatible";
+    }
+  });
+
+  // Modal Control Functions
+  function openModal() { document.getElementById("blueprint-modal").style.display = "flex"; }
+  function closeModal() { document.getElementById("blueprint-modal").style.display = "none"; }
+
+  // Clipboard Utility Helper
+  function copyEndpoint() {
+    const textToCopy = document.getElementById("api-url-display").textContent;
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      alert("Pipeline webhook URL successfully copied to system clipboard!");
+    }).catch(err => {
+      console.error("Clipboard operational write error: ", err);
+    });
+  }
+</script>
+</body>
+</html>

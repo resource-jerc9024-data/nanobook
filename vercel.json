@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "functions": {
+    "api/voice.js": { "maxDuration": 10 },
+    "api/token.js": { "maxDuration": 10 }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,OPTIONS" }
+      ]
+    }
+  ]
+}
